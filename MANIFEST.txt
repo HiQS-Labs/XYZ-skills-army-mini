@@ -1,0 +1,10 @@
+.gitignore
+LICENSE
+LICENSE-COMMERCIAL.md
+README.md
+skills-army-hq/README.md
+skills-army-hq/SKILL.md
+skills-army-hq/references/recovery.md
+skills-army-hq/references/targets.md
+skills-army-hq/scripts/intake.py
+skills-army-hq/scripts/sync.py
