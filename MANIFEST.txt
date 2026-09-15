@@ -2,9 +2,8 @@
 LICENSE
 LICENSE-COMMERCIAL.md
 README.md
-skills-army-hq/README.md
-skills-army-hq/SKILL.md
-skills-army-hq/references/recovery.md
-skills-army-hq/references/targets.md
-skills-army-hq/scripts/intake.py
-skills-army-hq/scripts/sync.py
+SKILL.md
+references/recovery.md
+references/targets.md
+scripts/intake.py
+scripts/sync.py
