@@ -1,4 +1,4 @@
 source_repo=XYZ-forge
-source_sha=6d91ed8ff4fe71164b1bdef070161a90dc713f07
-source_branch=development
+source_sha=a47c212b3ce2cee400853386a3e7213182f7827d
+source_branch=HEAD
 source_dirty=0

@@ -42,7 +42,7 @@ covers migration and transport hygiene. These files ship in both Pulse and Skill
 
 This skill comes from **XYZ Forge**, maintained in the
 [HiQS-Labs/XYZ-forge repository](https://github.com/HiQS-Labs/XYZ-forge),
-at `skills/skills-army-hq/`. It replaces `skills-sync-trinity`.
+at `skills/3-weekly/skills-army-hq/`. It replaces `skills-sync-trinity`.
 
 It gives your existing coding agent a conversational interface for managing a
 durable collection of local skills. Ask it to “list my deployed skills”, “import

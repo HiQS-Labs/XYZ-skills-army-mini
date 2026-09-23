@@ -14,7 +14,7 @@ the collection lives inside the live Git Pulse Sync checkout — the hourly puls
 stages it, and machine-local state is excluded by the collection's own `.gitignore`). Apps discover
 directory symlinks to these stable copies, not disposable task clones. **The collection is a
 projection, not a source:** every skill's canonical source is the repository it was vendored
-from — XYZ-forge `skills/<name>/` for forge-owned skills, another repo for the rest — and the
+from — XYZ-forge `skills/<tier>/<name>/` for forge-owned skills, another repo for the rest — and the
 collection is the convenient deploy-side copy of them (GH-660). A vendored copy that differs
 from its source is either stale (re-vendor it) or carries an improvement that belongs in a PR
 to that source repo first — never hand-edit a vendored copy to "fix" it. This skill is
@@ -48,7 +48,7 @@ This entire bundle, including this SOP and recovery guidance, travels with the p
 
 1. **Publish from source.** Change the skill in its owning repo and land it there first.
    On the designated publisher, preview then apply `intake.py update NAME --source
-   /path/to/owning-repo/skills/NAME` (or `add` for a new skill) against the Pulse root.
+   /path/to/owning-repo/skills/<tier>/NAME` (or `add` for a new skill) against the Pulse root.
    Commit the reviewed portable paths immediately; the Pulse writer cannot rebase a dirty
    tracked tree. Push through the existing Pulse workflow. Do not edit deployed payloads.
 2. **Prepare each device's checkout.** Pull the Pulse checkout when its tracked tree is clean.
@@ -148,7 +148,7 @@ its still-matching links. Foreign folders and retargeted links remain untouched.
 
 `sync.py` runs XYZ-forge's own checker (`utils/py/skill_drift_check.py`, ingested as
 `--json`) on every normal reconciliation — preview, `--status` and `--apply` (`--retire-trinity` only withdraws the retired skill and runs no deploy) — comparing each vendored `SKILL.md`
-with the forge's canonical `skills/<name>/SKILL.md`. Only names that exist in the forge's
+with the forge's canonical `skills/<tier>/<name>/SKILL.md`. Only names that exist in the forge's
 `skills/` are judged; collection-only skills (e.g. `buffer-doctor`, `hiqs-register`) are
 reported as `unrecognized` and never fail.
 
@@ -162,7 +162,7 @@ reported as `unrecognized` and never fail.
   carries `warnings` and a `drift` block (`ok`, `drifted`, `unrecognized`, `origin`).
 - `--apply` with an enabled target and any drifted forge-owned skill is **REFUSED** (exit 2)
   naming the skills and the canonical `skills/` path. Remedy is always the same:
-  `intake.py --apply update <name> --source <forge>/skills/<name>`, then sync again.
+  `intake.py --apply update <name> --source <forge>/skills/<tier>/<name>`, then sync again.
   `--allow-drift` deploys anyway, loudly, and records the drift in the result — a
   disclosed exception for a WIP branch, never a way to silence the checker.
 
