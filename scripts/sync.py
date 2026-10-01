@@ -22,7 +22,7 @@ def owned_record(root, state, target, name, previous=None):
             "text": str(root / name), **({"previous": previous} if previous is not None else {})}
 
 
-# Drift check (GH-660, made advisory by #3): when a canonical XYZ-forge checkout resolves, sync
+# Drift check (GH-660, made advisory by skills-army-mini#3): when a canonical XYZ-forge checkout resolves, sync
 # runs its checker (utils/py/skill_drift_check.py) and WARNS about every forge-owned skill whose
 # collection SKILL.md differs. Where a skill comes from is the operator's choice, so --apply
 # refuses only on a device that opted in with `intake.py --apply settings --drift refuse`.
@@ -213,7 +213,7 @@ def main(argv=None):
                            "Duplicate or mismatched alternative source")
             # The prior instructions may differ from the new copy. Only inspect its
             # identity here: explicit selection retires a link, never copies its payload.
-            # Any local folder qualifies (#3); where it lives is the operator's choice.
+            # Any local folder qualifies (skills-army-mini#3); where it lives is the operator's choice.
             migrate_from[name] = str(source)
         shared.load(root)
         with shared.locked(root) if apply else contextlib.nullcontext():

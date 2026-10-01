@@ -13,7 +13,7 @@ Keep actual skill folders in the user's `~/git-pulse-sync/Deployed Skills` (GH-5
 the collection lives inside the live Git Pulse Sync checkout — the hourly pulse writer
 stages it, and machine-local state is excluded by the collection's own `.gitignore`). Apps discover
 directory symlinks to these stable copies, not disposable task clones. **Skills Army HQ is a
-ledger, not a source policy (#3):** an operator may add or update a skill from *any* local
+ledger, not a source policy (skills-army-mini#3):** an operator may add or update a skill from *any* local
 folder — a git repo on any branch, a dirty working tree, or a plain folder that is not in git at
 all. Where a skill comes from is the operator's choice. What Skills Army guarantees is a record:
 every copy into, update in, or removal from the collection, and every link into or withdrawal from
@@ -39,7 +39,7 @@ users. Existing whole-folder intake copies it on initialization and update into
 Applied transactions also copy it to `Deployed Skills/README.md`, the collection's
 installer-managed landing document. Keep personal notes in a separate file.
 
-## SOP: one deployed collection per device (GH-672, source-agnostic per #3)
+## SOP: one deployed collection per device (GH-672, source-agnostic per skills-army-mini#3)
 
 **Any source folder → Git Pulse Sync `Deployed Skills/` → app directory symlinks.**
 Every device uses its own Pulse checkout's `Deployed Skills` directly. Do not import those
@@ -47,11 +47,12 @@ payloads into a second `~/Documents/Deployed Skills` collection. This SOP supers
 GH-508 spike and the former GH-536 secondary-device copy procedure. Skills Army sets no rule
 about where a skill comes from; a device may opt into source rules with `intake.py settings`
 (below). This entire bundle, including this SOP and recovery guidance, travels with every copy.
-The upstream for this manager is `HiQS-Labs/XYZ-skills-army-mini`; copies elsewhere may be stale.
+The upstream for this manager is `HiQS-Labs/XYZ-skills-army-mini`; copies elsewhere may be stale. The settled
+decision behind this SOP is recorded once, at https://github.com/HiQS-Labs/XYZ-skills-army-mini/issues/2.
 
 1. **Publish from any device.** Preview, then apply `intake.py update NAME --source /any/folder/NAME`
    (or `add` for a new skill) against the Pulse root, from whatever folder holds the version you
-   want. Any device with a clean, current Pulse checkout may publish (#7): pull before, commit the
+   want. Any device with a clean, current Pulse checkout may publish (skills-army-mini#7): pull before, commit the
    reviewed portable paths immediately (the Pulse writer cannot rebase a dirty tracked tree), and push
    through the existing Pulse workflow. Commit only portable payload paths, never ignored machine state.
 2. **Prepare each device's checkout.** Pull the Pulse checkout when its tracked tree is clean.
@@ -138,7 +139,7 @@ explicit collection. The default root is `~/git-pulse-sync/Deployed Skills`; `XY
 and explicit `--root` overrides both. Check old environment overrides before operating;
 script location does not select a different collection. A custom root is an alternative
 for users without Pulse, not an additional mirror on a Pulse-enabled device. Home/path values are computed locally, never copied from a
-different user's configuration. Source intake accepts any local folder (#3). The receipt always
+different user's configuration. Source intake accepts any local folder (skills-army-mini#3). The receipt always
 records the source path, content digest and time, and adds repository, commit, branch and dirty
 state when the folder is in git. The skill's frontmatter `name` becomes the collection folder name,
 whatever the source folder is called. `.git` is never copied; a source carrying `MANIFEST.txt` is a
@@ -155,7 +156,7 @@ acknowledges them. The manager itself is protected from removal to preserve reco
 Disabling/removing a target does not erase its ownership receipts: sync withdraws
 its still-matching links. Foreign folders and retargeted links remain untouched.
 
-## Drift check: a warning by default, a refusal only where a device opts in (GH-660, #3)
+## Drift check: a warning by default, a refusal only where a device opts in (GH-660, skills-army-mini#3)
 
 When a canonical XYZ-forge checkout resolves, `sync.py` runs its checker
 (`utils/py/skill_drift_check.py`, ingested as `--json`) on every normal reconciliation — preview,

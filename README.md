@@ -33,7 +33,7 @@ The default collection on every Pulse-enabled device lives at `~/git-pulse-sync/
 can carry the portable skill payloads between machines. Machine-specific targets, receipts, history,
 backups, catalog, and configuration remain local and excluded from publication.
 
-The workflow is **owning source repo → Git Pulse Sync `Deployed Skills/` → app symlinks**.
+The workflow is **any source folder → Git Pulse Sync `Deployed Skills/` → app symlinks**.
 There is no second deployed collection on a device. The operational SOP lives in the bundled
 `skills-army-hq/SKILL.md` (`SKILL.md` in the standalone package); `references/recovery.md`
 covers migration and transport hygiene. These files ship with every installed copy.

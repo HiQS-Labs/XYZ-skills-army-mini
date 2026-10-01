@@ -136,7 +136,7 @@ def skill_info(folder, require_folder_name=True):
 
 
 def package_info(folder):
-    """Read any skill folder (#3). The frontmatter name is authoritative and becomes the collection
+    """Read any skill folder (skills-army-mini#3). The frontmatter name is authoritative and becomes the collection
     folder name; the source folder may be named anything. `.git` is never copied. A folder carrying
     MANIFEST.txt is a repository-root bundle and also leaves its repo-only files behind."""
     info = skill_info(folder, require_folder_name=False)
@@ -201,7 +201,7 @@ def digest(folder, ignored=()):
 
 
 def source_record(raw, rules=None):
-    """Receipt for a skill source (#3). Any local folder qualifies: the receipt always records the
+    """Receipt for a skill source (skills-army-mini#3). Any local folder qualifies: the receipt always records the
     path, digest and time, and adds repository/commit/branch/dirty when the folder is in a git repo.
     A device may opt into source rules (`intake.py settings`); none apply by default."""
     source = Path(raw).expanduser().resolve(strict=True)
@@ -270,7 +270,7 @@ def validate_targets(root, config):
         for other in paths:
             require(not within(path, other) and not within(other, path), f"Nested target roots: {path}")
         paths.append(path)
-    # Device-wide settings (#3), written only by `intake.py settings`.
+    # Device-wide settings (skills-army-mini#3), written only by `intake.py settings`.
     require(config.get("drift", "warn") in ("warn", "refuse"), "Invalid drift setting (warn|refuse)")
     require(config.get("canonical") is None or isinstance(config["canonical"], str), "Invalid canonical setting")
     rules = config.get("source_rules", {})
