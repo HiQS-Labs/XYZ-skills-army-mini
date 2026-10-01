@@ -22,11 +22,11 @@ def owned_record(root, state, target, name, previous=None):
             "text": str(root / name), **({"previous": previous} if previous is not None else {})}
 
 
-# GH-660 remediation item 3: the collection is a distribution artifact of XYZ-forge's
-# canonical skills/. A deploy that ships a vendored SKILL.md diverging from canonical is
-# silent drift, so sync runs the forge-side checker (utils/py/skill_drift_check.py) and
-# refuses --apply while any forge-owned skill is drifted. Only names present in the forge's
-# skills/ are judged; collection-only skills stay informational ("unrecognized").
+# Drift check (GH-660, made advisory by #3): when a canonical XYZ-forge checkout resolves, sync
+# runs its checker (utils/py/skill_drift_check.py) and WARNS about every forge-owned skill whose
+# collection SKILL.md differs. Where a skill comes from is the operator's choice, so --apply
+# refuses only on a device that opted in with `intake.py --apply settings --drift refuse`.
+# Only names present in the forge's skills/ are judged; others stay informational ("unrecognized").
 CHECKER = Path("utils") / "py" / "skill_drift_check.py"
 
 
@@ -69,7 +69,7 @@ def warn(warnings, message):
 
 
 def drift_gate(root, state, config, found, explicit, apply, allow_drift, warnings):
-    """WARN on every drifted forge-owned skill; REFUSE an apply that would deploy one."""
+    """WARN on every drifted forge-owned skill; REFUSE an apply only where the device opted in."""
     canonical, origin = canonical_root(explicit, config, state)
     if canonical is None:
         warn(warnings, "drift check skipped: no canonical XYZ-forge root resolved "
@@ -81,13 +81,17 @@ def drift_gate(root, state, config, found, explicit, apply, allow_drift, warning
         remedy = (f"python3 {shlex.quote(str(root / 'intake.py'))} --root {shlex.quote(str(root))} --apply "
                   f"update {entry['skill']} --source {shlex.quote(str(Path(entry['canonical_path']).parent))}")
         warn(warnings, f"DRIFTED {entry['skill']}: vendored {entry['vendored_path']} != canonical "
-                       f"{entry['canonical_path']} — re-vendor: {remedy}")
+                       f"{entry['canonical_path']} — to match canonical: {remedy}")
     deploying = any(t["enabled"] for t in config["targets"])
-    if apply and drifted and deploying and not allow_drift:
+    refusing = config.get("drift", "warn") == "refuse"
+    if drifted and not refusing:
+        warn(warnings, "drift is a warning on this device (deploying anyway); "
+                       "`intake.py --apply settings --drift refuse` makes sync refuse instead")
+    if apply and drifted and deploying and refusing and not allow_drift:
         names = ", ".join(e["skill"] for e in drifted)
         shared.require(False, f"REFUSED: deploy would ship drifted vendored SKILL.md for {names}; "
                               f"canonical is {canonical / 'skills'} — re-vendor from it (or --allow-drift, loudly)")
-    if apply and drifted and allow_drift:
+    if apply and drifted and refusing and allow_drift:
         warn(warnings, f"--allow-drift: deploying {len(drifted)} drifted skill(s) against canonical {canonical}")
     return drift
 
@@ -192,7 +196,7 @@ def main(argv=None):
     p.add_argument("--canonical", metavar="FORGE_ROOT",
                    help="XYZ-forge checkout whose skills/ is canonical (else XYZ_FORGE_ROOT, targets.json \"canonical\")")
     p.add_argument("--allow-drift", action="store_true",
-                   help="Deploy despite drifted vendored skills; the drift is still reported and recorded")
+                   help="On a device set to `settings --drift refuse`, deploy despite drift; it is still reported and recorded")
     args = p.parse_args(argv)
     try:
         root = shared.location(args.root)
@@ -209,10 +213,7 @@ def main(argv=None):
                            "Duplicate or mismatched alternative source")
             # The prior instructions may differ from the new copy. Only inspect its
             # identity here: explicit selection retires a link, never copies its payload.
-            run = shared.subprocess.run(["git", "--no-optional-locks", "-C", str(source),
-                                         "rev-parse", "--show-toplevel"], text=True, capture_output=True)
-            shared.require(run.returncode == 0 and shared.within(source, Path(run.stdout.strip()).resolve()),
-                           "Alternative source must be a skill folder inside a local Git repo")
+            # Any local folder qualifies (#3); where it lives is the operator's choice.
             migrate_from[name] = str(source)
         shared.load(root)
         with shared.locked(root) if apply else contextlib.nullcontext():

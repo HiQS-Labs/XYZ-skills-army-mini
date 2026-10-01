@@ -52,7 +52,7 @@ from a real leak or wedge:
    `targets.json`, `catalog.md`, `changelog.md`, `backups/`, `*.zip`, `.lock`, `*.lock`, `.staging/`, `__pycache__/`,
    `*.pyc`. Note `*.lock`, not `.lock` — the first push leaked
    `.deploy-skills.lock` on exactly that distinction.
-   If any are already tracked, the publisher uses `git rm --cached -- <exact paths>`
+   If any are already tracked, the publishing device (any device may publish) uses `git rm --cached -- <exact paths>`
    to remove only their index entries, retaining local files, then commits that hygiene
    change. Existing consumer copies must preserve local state before pulling a commit
    that removes tracked state; Git may remove their formerly tracked files.
@@ -60,7 +60,7 @@ from a real leak or wedge:
    `pull --rebase` refuses on uncommitted tracked changes, wedging its whole
    cycle (observed: exit 128, the documented 229-run failure class).
 3. **Verify cross-device digests against the checkout's copy, not the
-   publisher's live folder** — git normalizes file modes (only the executable
+   publishing device's live folder** — git normalizes file modes (only the executable
    bit survives), so byte-identical payloads can digest differently.
 
 Adoption on every device uses the existing Pulse payloads directly; see SKILL.md →

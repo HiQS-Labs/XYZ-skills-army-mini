@@ -36,13 +36,14 @@ backups, catalog, and configuration remain local and excluded from publication.
 The workflow is **owning source repo → Git Pulse Sync `Deployed Skills/` → app symlinks**.
 There is no second deployed collection on a device. The operational SOP lives in the bundled
 `skills-army-hq/SKILL.md` (`SKILL.md` in the standalone package); `references/recovery.md`
-covers migration and transport hygiene. These files ship in both Pulse and Skills Army mini.
+covers migration and transport hygiene. These files ship with every installed copy.
 
 ## Origin
 
-This skill comes from **XYZ Forge**, maintained in the
-[HiQS-Labs/XYZ-forge repository](https://github.com/HiQS-Labs/XYZ-forge),
-at `skills/3-weekly/skills-army-hq/`. It replaces `skills-sync-trinity`.
+This skill is maintained in
+[HiQS-Labs/XYZ-skills-army-mini](https://github.com/HiQS-Labs/XYZ-skills-army-mini), its upstream since
+2026-10-01. It started life in [XYZ Forge](https://github.com/HiQS-Labs/XYZ-forge) and replaces
+`skills-sync-trinity`.
 
 It gives your existing coding agent a conversational interface for managing a
 durable collection of local skills. Ask it to “list my deployed skills”, “import
@@ -51,12 +52,14 @@ The agent instructions live in the skill folder's `SKILL.md`.
 
 ## Source ownership
 
-XYZ Forge is the authoritative source for this managed package. The
-[`HiQS-Labs/XYZ-skills-army-mini`](https://github.com/HiQS-Labs/XYZ-skills-army-mini) repository is a generated
-projection: change managed files in
-XYZ Forge, merge them, and republish. Do not maintain equivalent patches in both repositories.
-Local collections and their receipts, targets, catalogs, history, backups, and imported skills are
-operator-owned state and are never part of the generated repository.
+**This repository is the authoritative source for Skills Army HQ** (decision recorded on
+[#2](https://github.com/HiQS-Labs/XYZ-skills-army-mini/issues/2)). Change it here first. XYZ Forge keeps a
+vendored copy at `skills/3-weekly/skills-army-hq/` that is refreshed now and then and may be stale;
+for the newest version, use this repository. Local collections and their receipts, targets, catalogs,
+history, backups, and imported skills are operator-owned state and are never part of this repository.
+
+Skills Army HQ does not decide where *your* skills come from: any local folder can be imported
+(see `SKILL.md`). It records what is copied into your collection and what is linked into each app.
 
 ## Where an installed copy lives
 
@@ -70,8 +73,8 @@ back to the source checkout, so deleting a temporary clone does not remove it.
 Configured apps receive directory symlinks to the durable skill folders.
 
 The collection's `catalog.md` lists its skills, `targets.json` records deployment
-destinations, and `changelog.md` records operations. Local source paths, available
-Git revisions and payload digests are recorded in `.deploy-skills.json`; those
+destinations and device settings, and `changelog.md` records operations. Local source paths,
+payload digests and (when the source is in git) its revision are recorded in `.deploy-skills.json`; those
 receipts identify the particular imported copy, whereas the link above identifies
 the upstream project. Keep local receipts and imported private skills private.
 
@@ -103,12 +106,12 @@ See the bundled SOP for additions, removals, and migration from the former Docum
 `--root` takes precedence over `XYZ_SKILLS_ROOT`, which takes precedence over the Pulse default;
 check for an old environment override. Without Pulse, choose one custom root and use it consistently.
 
-For a new publisher collection, establish the exclusions in `references/recovery.md`
-before its first Git commit or push. Plain `init` itself requires an empty directory.
+For a new collection that will be published, establish the exclusions in `references/recovery.md`
+before its first Git commit or push. Any device may publish. Plain `init` itself requires an empty directory.
 
 Targets start disabled. Ask your agent to configure the apps you choose, preview
 the changes, and sync them. Operations preview by default; `--apply` writes.
-Only local Git skill folders are imported; runtime dependencies are not installed.
+Any local skill folder can be imported, in git or not; runtime dependencies are not installed.
 Overwritten skill folders are backed up as dated ZIPs, with same-day suffixes.
 Foreign app folders and unrelated links are preserved rather than overwritten.
 
