@@ -663,6 +663,15 @@ raise SystemExit(mod.main(sys.argv[3:]))
             self.assertIn(kind, log)
         self.assertGreaterEqual(log.count("— sync"), 2, "link and withdrawal are both recorded")
 
+    def test_migrate_from_accepts_any_folder_name(self):
+        self.cli("--apply", "add", self.source())
+        prior = self.loose("old copy of sample", "sample")  # non-git, folder name differs from the skill name
+        self.enable(); self.target.mkdir()
+        (self.target / "sample").symlink_to(prior)
+        self.cli("--apply", "--migrate-from", f"sample={prior}", sync=True)
+        self.assertEqual(os.readlink(self.target / "sample"), str(self.root / "sample"))
+        self.assertIn(str(prior), (self.root / "changelog.md").read_text(), "the retired link is recorded")
+
     def test_git_source_receipt_adds_repository_commit_branch_and_dirty(self):
         self.cli("--apply", "add", self.source())
         receipt = self.state()["skills"]["sample"]

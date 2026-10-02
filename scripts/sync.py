@@ -211,7 +211,7 @@ def main(argv=None):
             shared.require(separator and raw, "--migrate-from requires SKILL=LOCAL_SOURCE")
             shared.safe_name(name)
             source = Path(raw).expanduser().resolve(strict=True)
-            shared.require(name not in migrate_from and shared.skill_info(source)["name"] == name,
+            shared.require(name not in migrate_from and shared.skill_info(source, require_folder_name=False)["name"] == name,
                            "Duplicate or mismatched alternative source")
             # The prior instructions may differ from the new copy. Only inspect its
             # identity here: explicit selection retires a link, never copies its payload.
