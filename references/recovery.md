@@ -38,8 +38,8 @@ moved, restore the original path before operating. A deliberate relocation is no
 automated in this alpha: preserve the old collection, withdraw its owned app links
 through disable/sync, initialize a new empty `--root`, and re-import local source
 skills and configure targets there. Retain old backups/history separately; never
-rewrite receipts to pretend they belong to the new root. Locally edited payloads
-need preservation in a local source repository before re-import.
+rewrite receipts to pretend they belong to the new root. Preserve locally edited
+payloads in a folder you control before re-import.
 
 ### Relocating into a git-synced checkout (GH-536)
 
@@ -52,7 +52,7 @@ from a real leak or wedge:
    `targets.json`, `catalog.md`, `changelog.md`, `backups/`, `*.zip`, `.lock`, `*.lock`, `.staging/`, `__pycache__/`,
    `*.pyc`. Note `*.lock`, not `.lock` — the first push leaked
    `.deploy-skills.lock` on exactly that distinction.
-   If any are already tracked, the publisher uses `git rm --cached -- <exact paths>`
+   If any are already tracked, the publishing device (any device may publish) uses `git rm --cached -- <exact paths>`
    to remove only their index entries, retaining local files, then commits that hygiene
    change. Existing consumer copies must preserve local state before pulling a commit
    that removes tracked state; Git may remove their formerly tracked files.
@@ -60,7 +60,7 @@ from a real leak or wedge:
    `pull --rebase` refuses on uncommitted tracked changes, wedging its whole
    cycle (observed: exit 128, the documented 229-run failure class).
 3. **Verify cross-device digests against the checkout's copy, not the
-   publisher's live folder** — git normalizes file modes (only the executable
+   publishing device's live folder** — git normalizes file modes (only the executable
    bit survives), so byte-identical payloads can digest differently.
 
 Adoption on every device uses the existing Pulse payloads directly; see SKILL.md →
@@ -71,7 +71,7 @@ The old GH-508/536 secondary-device copy procedure is superseded.
 
 ### Retiring a second local collection
 
-Preserve any differing payloads in their owning source repositories first. With the old
+Preserve any differing payloads in a folder you control first. With the old
 root explicitly selected via `--root`, disable its targets and sync to withdraw only its
 owned links. Keep the old collection and backups intact while adopting the Pulse root
 in place (or reusing its existing local state). Configure the selected targets there,

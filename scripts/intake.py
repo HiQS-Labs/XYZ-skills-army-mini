@@ -23,9 +23,13 @@ STATE = ".deploy-skills.json"
 PENDING = ".deploy-skills-pending.json"
 NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 RESERVED = {"backups", "catalog", "changelog", "targets", "intake", "sync"}
+# A repository-root bundle (a folder with MANIFEST.txt, e.g. this manager's own repo) leaves its
+# repo-only files behind. `.git` is never copied from any source.
 PROJECTED_ROOT_IGNORES = frozenset({
     ".git", ".gitignore", ".xyz-forge-revision", "MANIFEST.txt", "LICENSE", "LICENSE-COMMERCIAL.md",
+    "tests", ".github",
 })
+SOURCE_RULES = ("any", "git", "clean")
 
 
 class DeployError(Exception):
@@ -132,16 +136,15 @@ def skill_info(folder, require_folder_name=True):
 
 
 def package_info(folder):
-    """Recognize either a normal skill folder or a generated repository-root projection."""
+    """Read any skill folder (skills-army-mini#3). The frontmatter name is authoritative and becomes the collection
+    folder name; the source folder may be named anything. `.git` is never copied. A folder carrying
+    MANIFEST.txt is a repository-root bundle and also leaves its repo-only files behind."""
     info = skill_info(folder, require_folder_name=False)
-    if folder.name == info["name"]:
-        return info, frozenset()
-    revision = regular_bytes(folder / ".xyz-forge-revision").decode("utf-8")
-    manifest = set(regular_bytes(folder / "MANIFEST.txt").decode("utf-8").splitlines())
-    required = {"README.md", "SKILL.md", "scripts/intake.py", "scripts/sync.py"}
-    require("source_repo=XYZ-forge\n" in revision and required <= manifest,
-            f"Folder/name mismatch: {folder.name} != {info['name']}")
-    return info, PROJECTED_ROOT_IGNORES
+    if (folder / "MANIFEST.txt").is_file():
+        manifest = set(regular_bytes(folder / "MANIFEST.txt").decode("utf-8").splitlines())
+        require("SKILL.md" in manifest, f"MANIFEST.txt does not list SKILL.md: {folder}")
+        return info, PROJECTED_ROOT_IGNORES
+    return info, frozenset({".git"})
 
 
 def snapshot(folder, ignored=()):
@@ -153,6 +156,9 @@ def snapshot(folder, ignored=()):
         if Path(base) == folder:
             dirs[:] = [name for name in dirs if name not in ignored]
             files = [name for name in files if name not in ignored]
+        if ".git" in ignored:  # sources (skills-army-mini#3): never take .git at any depth
+            dirs[:] = [name for name in dirs if name != ".git"]
+            files = [name for name in files if name != ".git"]
         directory_edges[Path(base).resolve()] = []
         for name in sorted(dirs + files):
             path = Path(base) / name
@@ -197,23 +203,43 @@ def digest(folder, ignored=()):
     return hashlib.sha256(json.dumps(snapshot(folder, ignored), sort_keys=True).encode()).hexdigest()
 
 
-def source_record(raw):
+def source_record(raw, rules=None):
+    """Receipt for a skill source (skills-army-mini#3). Any local folder qualifies: the receipt always records the
+    path, digest and time, and adds repository/commit/branch/dirty when the folder is in a git repo.
+    A device may opt into source rules (`intake.py settings`); none apply by default."""
     source = Path(raw).expanduser().resolve(strict=True)
+    require(source.is_dir(), f"Source is not a folder: {source}")
     info, ignored = package_info(source)
-    result = subprocess.run(["git", "--no-optional-locks", "-C", str(source), "rev-parse", "--show-toplevel"],
-                            text=True, capture_output=True)
-    require(result.returncode == 0, f"Source must be in a local Git repository: {source}")
-    repo = Path(result.stdout.strip()).resolve()
-    require(within(source, repo) or source == repo and ignored,
-            f"Select a skill folder inside the repository: {source}")
+    record = {**info, "source": str(source), "digest": digest(source, ignored), "updated": utc(),
+              "prerequisites": []}
     def git(*args):
-        run = subprocess.run(["git", "--no-optional-locks", "-C", str(repo), *args], text=True, capture_output=True)
-        require(run.returncode == 0, f"Cannot inspect source repository: {run.stderr.strip()}")
-        return run.stdout.strip()
-    return source, {**info, "source": str(source), "repository": str(repo),
-                    "commit": git("rev-parse", "HEAD"),
-                    "dirty": bool(git("status", "--porcelain", "--", str(source))),
-                    "digest": digest(source, ignored), "updated": utc(), "prerequisites": []}, ignored
+        try:
+            run = subprocess.run(["git", "--no-optional-locks", "-C", str(source), *args],
+                                 text=True, capture_output=True)
+        except OSError:
+            return None
+        return run.stdout.strip() if run.returncode == 0 else None
+    repo = git("rev-parse", "--show-toplevel")
+    if repo:
+        record.update(repository=str(Path(repo).resolve()), commit=git("rev-parse", "HEAD"),
+                      branch=git("rev-parse", "--abbrev-ref", "HEAD"),
+                      dirty=bool(git("status", "--porcelain", "--", str(source))))
+    check_source_rules(record, rules or {})
+    return source, record, ignored
+
+
+def check_source_rules(record, rules):
+    """Opt-in, per-device source rules. Skills Army sets no source policy unless the operator does."""
+    mode = rules.get("mode", "any")
+    if mode in ("git", "clean"):
+        require(record.get("repository") and record.get("commit"),
+                f"Source rule '{mode}' (intake.py settings): {record['source']} is not in a committed git repository")
+    if mode == "clean":
+        require(not record.get("dirty"), f"Source rule 'clean' (intake.py settings): {record['source']} has uncommitted changes")
+    allowed = rules.get("repositories") or []
+    if allowed:
+        require(record.get("repository") in allowed,
+                f"Source rule (intake.py settings): {record['source']} is outside the allowed repositories {allowed}")
 
 
 def defaults():
@@ -247,6 +273,14 @@ def validate_targets(root, config):
         for other in paths:
             require(not within(path, other) and not within(other, path), f"Nested target roots: {path}")
         paths.append(path)
+    # Device-wide settings (skills-army-mini#3), written only by `intake.py settings`.
+    require(config.get("drift", "warn") in ("warn", "refuse"), "Invalid drift setting (warn|refuse)")
+    require(config.get("canonical") is None or isinstance(config["canonical"], str), "Invalid canonical setting")
+    rules = config.get("source_rules", {})
+    require(isinstance(rules, dict) and set(rules) <= {"mode", "repositories"}
+            and rules.get("mode", "any") in SOURCE_RULES
+            and isinstance(rules.get("repositories", []), list)
+            and all(isinstance(r, str) for r in rules.get("repositories", [])), "Invalid source_rules setting")
     return config
 
 
@@ -389,7 +423,7 @@ def render_catalog(root, state, config):
                 good = path.is_symlink() and os.readlink(path) == str(root / name)
                 statuses.append(f"{target['id']}: {'linked' if good else 'not linked'}")
         lines.append(f"| [{name}]({name}/SKILL.md) | {esc(info['description'])} | "
-                     f"{esc(receipt.get('source', 'manual/unadopted'))} @ {receipt.get('commit', 'unknown')} | "
+                     f"{esc(receipt.get('source', 'manual/unadopted'))} @ {receipt.get('commit') or 'no git'} | "
                      f"{receipt.get('updated', 'unknown')} | {info['digest']} | {esc('; '.join(statuses))} |")
     lines.extend(["", "## Runtime prerequisites", ""])
     for name, receipt in state["skills"].items():
@@ -568,7 +602,8 @@ def stage_payload(root, source, before, after, name=None, ignored=()):
     if source is not None:
         source = Path(source)
         def exclude(current, names):
-            return [item for item in names if Path(current) == source and item in ignored]
+            return [item for item in names if (Path(current) == source and item in ignored)
+                    or (item == ".git" and ".git" in ignored)]
         shutil.copytree(source, stage / "new", symlinks=True, ignore=exclude)
         require(digest(stage / "new") == after and digest(source, ignored) == after,
                 "Source changed during staging")
@@ -606,7 +641,7 @@ def adopt_existing(root, apply):
         require(link_text(root / name) == f"skills-army-hq/scripts/{name}"
                 and (root / name).is_file(), f"Missing or foreign manager entry: {name}")
     require(regular_bytes(root / "README.md") == regular_bytes(root / "skills-army-hq" / "README.md"),
-            "Collection README differs from manager; refresh it on the publisher")
+            "Collection README differs from manager; refresh it with `update skills-army-hq` on any device, then publish")
     state = {"schema": SCHEMA, "root": str(root), "collection": uuid.uuid4().hex,
              "skills": {name: source_record(root / name)[1] for name in found}, "links": {}}
     validate_history(root)
@@ -638,6 +673,13 @@ def parser():
     target.add_argument("--id"); target.add_argument("--path")
     target.add_argument("--consumer", action="append", default=[])
     target.add_argument("--disable", action="store_true"); target.add_argument("--remove", action="store_true")
+    settings = sub.add_parser("settings", help="Device-wide settings: drift policy, canonical forge root, opt-in source rules")
+    settings.add_argument("--drift", choices=("warn", "refuse"), help="refuse makes sync --apply refuse drifted skills")
+    settings.add_argument("--canonical", metavar="FORGE_ROOT"); settings.add_argument("--no-canonical", action="store_true")
+    settings.add_argument("--source-rule", choices=SOURCE_RULES, help="any (default), git, or clean")
+    settings.add_argument("--source-repo", action="append", default=[], metavar="REPO_ROOT",
+                          help="Allow only sources inside this repository (repeatable)")
+    settings.add_argument("--no-source-repos", action="store_true")
     note = sub.add_parser("prerequisite"); note.add_argument("name"); note.add_argument("text")
     return p
 
@@ -689,6 +731,11 @@ def main(argv=None):
             return 0
         if args.command == "targets" and not args.id:
             print(json.dumps(config, indent=2)); return 0
+        settings_requested = args.command == "settings" and (
+            args.drift or args.canonical or args.no_canonical or args.source_rule
+            or args.source_repo or args.no_source_repos)
+        if args.command == "settings" and not settings_requested:
+            print(json.dumps({k: config.get(k) for k in ("drift", "canonical", "source_rules")}, indent=2)); return 0
         # Preview follows exactly the same validation path but never takes a write lock.
         with locked(root) if apply else contextlib.nullcontext():
             state, config = load(root)
@@ -709,7 +756,7 @@ def main(argv=None):
             elif args.command in ("add", "update"):
                 raw = args.source if args.command == "add" else args.source or state["skills"].get(args.name, {}).get("source")
                 require(raw, "No source receipt; provide --source")
-                source, record, ignored = source_record(raw)
+                source, record, ignored = source_record(raw, config.get("source_rules"))
                 name = record["name"]
                 if args.command == "update":
                     require(name == safe_name(args.name) and name in found, "Update name/source mismatch or absent skill")
@@ -718,7 +765,8 @@ def main(argv=None):
                 before = found.get(name, {}).get("digest")
                 if before == record["digest"]:
                     print(f"Unchanged: {name}"); return 0
-                details = {"name": name, "source": str(source), "before": before, "after": record["digest"], "commit": record["commit"]}
+                details = {"name": name, "source": str(source), "before": before, "after": record["digest"],
+                           "commit": record.get("commit")}
                 if apply:
                     if before:
                         details["backup"] = archive(root, root / name)
@@ -749,6 +797,32 @@ def main(argv=None):
                                               "enabled": not args.disable})
                 validate_targets(root, config)
                 details = {"targets": config["targets"]}
+            elif args.command == "settings":
+                require(not (args.canonical and args.no_canonical), "Choose --canonical or --no-canonical")
+                require(not (args.source_repo and args.no_source_repos), "Choose --source-repo or --no-source-repos")
+                if args.drift:
+                    config["drift"] = args.drift
+                if args.no_canonical:
+                    config.pop("canonical", None)
+                elif args.canonical:
+                    config["canonical"] = str(Path(args.canonical).expanduser().resolve(strict=True))
+                rules = dict(config.get("source_rules", {}))
+                if args.source_rule:
+                    rules["mode"] = args.source_rule
+                if args.no_source_repos:
+                    rules.pop("repositories", None)
+                for raw_repo in args.source_repo:
+                    repo = str(Path(raw_repo).expanduser().resolve(strict=True))
+                    if repo not in rules.setdefault("repositories", []):
+                        rules["repositories"].append(repo)
+                if rules.get("mode") == "any":
+                    rules.pop("mode")
+                if rules:
+                    config["source_rules"] = rules
+                else:
+                    config.pop("source_rules", None)
+                validate_targets(root, config)
+                details = {"settings": {k: config.get(k) for k in ("drift", "canonical", "source_rules")}}
             elif args.command == "prerequisite":
                 name = safe_name(args.name)
                 require(name in state["skills"], "Skill must be adopted first")

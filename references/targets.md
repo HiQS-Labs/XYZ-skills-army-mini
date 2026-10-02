@@ -27,4 +27,19 @@ ZCode documents Settings → Skills → Refresh and supports symlink imports. Di
 unsupported/unavailable app verification from successful link creation. Never infer
 VS Code extension behavior solely from a similarly named CLI.
 
+## Device settings (`intake.py settings`)
+
+`targets.json` also holds this device's optional settings. Change them only with `intake.py settings`
+(preview by default, `--apply` writes and records the change in `changelog.md`); never edit the file
+by hand. Run `intake.py settings` with no flags to show them.
+
+| Setting | Flag | Default | Effect |
+|---|---|---|---|
+| `drift` | `--drift warn\|refuse` | `warn` | `refuse` makes `sync.py --apply` refuse drifted forge-owned skills (`--allow-drift` overrides) |
+| `canonical` | `--canonical PATH` / `--no-canonical` | unset | XYZ-forge checkout used by the drift check |
+| `source_rules.mode` | `--source-rule any\|git\|clean` | `any` | `git` refuses non-git sources; `clean` also refuses dirty ones |
+| `source_rules.repositories` | `--source-repo PATH` (repeatable) / `--no-source-repos` | none | refuse sources outside the listed repository roots |
+
+These are personal choices for one device; Skills Army HQ applies none of them unless asked.
+
 A healthy symlink under `~/.grok-bot/skills` does **not** prove Grok Bot has loaded the skill. Box import is a separate step: ask Grok Bot to import the staging folder (or Deployed Skills) via Grok Bot / `update_state` into `/home/box/agent-data/workflows`; Mac paths are not box paths.
