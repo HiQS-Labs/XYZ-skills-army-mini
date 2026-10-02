@@ -156,6 +156,9 @@ def snapshot(folder, ignored=()):
         if Path(base) == folder:
             dirs[:] = [name for name in dirs if name not in ignored]
             files = [name for name in files if name not in ignored]
+        if ".git" in ignored:  # sources (skills-army-mini#3): never take .git at any depth
+            dirs[:] = [name for name in dirs if name != ".git"]
+            files = [name for name in files if name != ".git"]
         directory_edges[Path(base).resolve()] = []
         for name in sorted(dirs + files):
             path = Path(base) / name
@@ -599,7 +602,8 @@ def stage_payload(root, source, before, after, name=None, ignored=()):
     if source is not None:
         source = Path(source)
         def exclude(current, names):
-            return [item for item in names if Path(current) == source and item in ignored]
+            return [item for item in names if (Path(current) == source and item in ignored)
+                    or (item == ".git" and ".git" in ignored)]
         shutil.copytree(source, stage / "new", symlinks=True, ignore=exclude)
         require(digest(stage / "new") == after and digest(source, ignored) == after,
                 "Source changed during staging")

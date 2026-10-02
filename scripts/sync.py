@@ -87,11 +87,13 @@ def drift_gate(root, state, config, found, explicit, apply, allow_drift, warning
     if drifted and not refusing:
         warn(warnings, "drift is a warning on this device (deploying anyway); "
                        "`intake.py --apply settings --drift refuse` makes sync refuse instead")
-    if apply and drifted and deploying and refusing and not allow_drift:
+    if drifted and deploying and refusing and not allow_drift:
         names = ", ".join(e["skill"] for e in drifted)
-        shared.require(False, f"REFUSED: deploy would ship drifted vendored SKILL.md for {names}; "
-                              f"canonical is {canonical / 'skills'} — re-vendor from it (or --allow-drift, loudly)")
-    if apply and drifted and refusing and allow_drift:
+        message = (f"deploy would ship drifted vendored SKILL.md for {names}; canonical is "
+                   f"{canonical / 'skills'} — re-vendor from it (or --allow-drift, loudly)")
+        shared.require(not apply, f"REFUSED: {message}")
+        warn(warnings, f"--apply would be REFUSED on this device (settings --drift refuse): {message}")
+    if drifted and refusing and allow_drift:
         warn(warnings, f"--allow-drift: deploying {len(drifted)} drifted skill(s) against canonical {canonical}")
     return drift
 

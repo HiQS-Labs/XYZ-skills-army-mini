@@ -274,8 +274,10 @@ class DeploySkillsTest(unittest.TestCase):
             self.cli("--apply", "update", "sample")
         archives = sorted((self.root / "backups").glob("sample-*.zip"))
         self.assertEqual(len(archives), 2)
-        self.assertTrue(any(p.name.endswith("-02.zip") for p in archives))
-        first = next(p for p in archives if not p.name.endswith("-02.zip"))
+        # The collision suffix follows the full date; a bare "-02.zip" check misfires on the 2nd of a month.
+        collision = lambda p: p.stem.count("-") == 4  # sample-YYYY-MM-DD-02 vs sample-YYYY-MM-DD
+        self.assertTrue(any(collision(p) and p.stem.endswith("-02") for p in archives))
+        first = next(p for p in archives if not collision(p))
         restored = self.work / "restore"
         restored.mkdir()
         with zipfile.ZipFile(first) as z:
@@ -585,6 +587,8 @@ raise SystemExit(mod.main(sys.argv[3:]))
         # Opted in: while drift remains, a newly added skill must not be linked.
         self.cli("--apply", "settings", "--drift", "refuse")
         self.cli("--apply", "add", self.source("second"))
+        preview = json.loads(self.cli(sync=True).stdout)  # preview tells the truth about --apply
+        self.assertTrue(any(w.startswith("--apply would be REFUSED") for w in preview["warnings"]))
         refused = self.cli("--apply", sync=True, code=2)
         self.assertIn("REFUSED", refused.stderr); self.assertIn("DRIFTED sample", refused.stderr)
         self.assertIn(str(forge / "skills"), refused.stderr)
@@ -687,16 +691,23 @@ raise SystemExit(mod.main(sys.argv[3:]))
     def test_git_dir_never_copied_and_bundle_root_leaves_repo_files(self):
         own_repo = self.loose("own repo", "self-contained")
         subprocess.run(["git", "-C", str(own_repo), "init", "-q"], check=True)
+        nested = own_repo / "sub"
+        subprocess.run(["git", "init", "-q", str(nested)], check=True)
+        (nested / "tests").mkdir(); (nested / "tests" / "keep.txt").write_text("nested tests stay\n")
         self.cli("--apply", "add", own_repo)
         self.assertFalse((self.root / "self-contained" / ".git").exists())
+        self.assertFalse((self.root / "self-contained" / "sub" / ".git").exists(), ".git is never copied at any depth")
+        self.assertTrue((self.root / "self-contained" / "sub" / "tests" / "keep.txt").is_file())
         bundle = self.loose("Some-Bundle-Repo", "bundled")
         (bundle / "MANIFEST.txt").write_text("SKILL.md\nscripts/run.py\n")
         (bundle / "scripts").mkdir(); (bundle / "scripts" / "run.py").write_text("print(1)\n")
         (bundle / "tests").mkdir(); (bundle / "tests" / "test_x.py").write_text("x\n")
+        (bundle / "scripts" / "tests").mkdir(); (bundle / "scripts" / "tests" / "fixture.txt").write_text("kept\n")
         (bundle / "LICENSE").write_text("license\n")
         self.cli("--apply", "add", bundle)
         copied = self.root / "bundled"
         self.assertTrue((copied / "scripts" / "run.py").is_file())
+        self.assertTrue((copied / "scripts" / "tests" / "fixture.txt").is_file(), "repo-only ignores apply at the root only")
         for repo_only in ("tests", "LICENSE", "MANIFEST.txt"):
             self.assertFalse((copied / repo_only).exists(), repo_only)
         (bundle / "MANIFEST.txt").write_text("README.md\n")
