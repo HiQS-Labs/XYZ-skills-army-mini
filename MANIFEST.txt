@@ -1,9 +1,9 @@
 .gitignore
+BOT-DAILY-HEALTH-CHECK.md
 LICENSE
 LICENSE-COMMERCIAL.md
 README.md
 SKILL.md
-bot-monitor-prompt.md
 references/recovery.md
 references/targets.md
 scripts/intake.py
